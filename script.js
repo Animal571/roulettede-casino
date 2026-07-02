@@ -291,3 +291,4 @@ drawWheel();
 updateUI();
 checkBankruptcy();
 spinButton.textContent = "Lancer la roue";
+
