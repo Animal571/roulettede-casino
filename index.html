@@ -1,96 +1,228 @@
-<!DOCTYPE html>
-<html lang="fr" class="h-full bg-neutral-950 text-neutral-100">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mine Royale - Premium Edition</title>
-    <!-- Tailwind CSS pour un design moderne ultra-rapide -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- FontAwesome pour des icônes professionnelles -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="h-full font-sans antialiased selection:bg-amber-500 selection:text-black">
+// STATE MANAGEMENT PRO
+const GAME_KEY = 'MineRoyale_Prod_Save';
 
-    <div class="flex flex-col h-full max-w-md mx-auto bg-neutral-900 shadow-2xl overflow-hidden border-x border-neutral-800">
-        
-        <!-- HEADER / STATS PANEL -->
-        <header class="p-6 bg-neutral-950 border-b border-neutral-800 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-black tracking-wider text-amber-500 uppercase">Mine Royale</h1>
-                <p class="text-xs text-neutral-400">Version 2.0 • Production</p>
+let state = {
+    coal: 0,
+    totalCps: 0,
+    upgrades: {
+        miner: { count: 0, baseCost: 10, costScale: 1.15, cps: 0.2 },
+        drill: { count: 0, baseCost: 150, costScale: 1.16, cps: 4 },
+        excavator: { count: 0, baseCost: 2500, costScale: 1.18, cps: 45 },
+        laser: { count: 0, baseCost: 75000, costScale: 1.20, cps: 680 },
+        nuclear: { count: 0, baseCost: 1200000, costScale: 1.25, cps: 9500 },
+        quantum: { count: 0, baseCost: 1000000000, costScale: 1.35, cps: 150000 },
+        singularity: { count: 0, baseCost: 1000000000000, costScale: 1.50, cps: 8000000 } // Échelle Trillion
+    }
+};
+
+let currentBetAmount = 0;
+let isSpinning = false;
+
+// FORMATTEUR DE NOMBRES PROFESSIONNEL (Échelle Financière standard des Clickers)
+function formatNumber(num) {
+    if (num === 0) return '0';
+    const units = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
+    const i = Math.floor(Math.log10(num) / 3);
+    if (i >= units.length) return num.toExponential(2);
+    if (i === 0) return Math.floor(num).toString();
+    return (num / Math.pow(10, i * 3)).toFixed(2) + ' ' + units[i];
+}
+
+// CALCULS DES COÛTS EXPONENTIELS
+function getUpgradeCost(type) {
+    const up = state.upgrades[type];
+    return Math.floor(up.baseCost * Math.pow(up.costScale, up.count));
+}
+
+function recalculateCps() {
+    let total = 0;
+    for (const key in state.upgrades) {
+        total += state.upgrades[key].count * state.upgrades[key].cps;
+    }
+    state.totalCps = total;
+}
+
+// SYNC INTERFACE GRAPHIQUE
+function updateUI() {
+    document.getElementById('global-coal').innerText = formatNumber(state.coal);
+    document.getElementById('global-cps').innerText = formatNumber(state.totalCps);
+    document.getElementById('display-bet-amount').innerText = formatNumber(currentBetAmount);
+    renderUpgrades();
+}
+
+// RENDU DYNAMIQUE DE LA BOUTIQUE AVEC DESIGN PREMIUM
+function renderUpgrades() {
+    const container = document.getElementById('upgrades-list');
+    container.innerHTML = '';
+
+    const upgradeNames = {
+        miner: { name: 'Équipe de Mineurs', desc: 'Pioches manuelles renforcées' },
+        drill: { name: 'Foreuse Automatique', desc: 'Forage rotatif continu' },
+        excavator: { name: 'Excavatrice Lourde', desc: 'Rendement industriel à godets' },
+        laser: { name: 'Rayon de Phase Laser', desc: 'Sublime la roche instantanément' },
+        nuclear: { name: 'Réacteur de Mine Atomique', desc: 'Extraction par fission contrôlée' },
+        quantum: { name: 'Manipulateur Quantique', desc: 'Téléporte le minerai purifié' },
+        singularity: { name: 'Foreuse Singularité', desc: 'Effondrement gravitationnel contrôlé' }
+    };
+
+    for (const key in state.upgrades) {
+        const up = state.upgrades[key];
+        const cost = getUpgradeCost(key);
+        const canAfford = state.coal >= cost;
+
+        const row = document.createElement('button');
+        row.disabled = !canAfford;
+        row.className = `w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left group ${
+            canAfford 
+                ? 'bg-neutral-900 border-neutral-800 hover:border-amber-500/40 cursor-pointer' 
+                : 'bg-neutral-950 border-neutral-900 opacity-50 cursor-not-allowed'
+        }`;
+
+        row.onclick = () => {
+            if (state.coal >= cost) {
+                state.coal -= cost;
+                up.count++;
+                recalculateCps();
+                updateUI();
+                saveGame();
+            }
+        };
+
+        row.innerHTML = `
+            <div class="flex-1 pr-4">
+                <div class="text-xs font-bold text-neutral-200 group-hover:text-amber-400 transition-colors">${upgradeNames[key].name} <span class="text-amber-500 font-mono text-[11px] ml-1">x${up.count}</span></div>
+                <div class="text-[10px] text-neutral-500">${upgradeNames[key].desc}</div>
+                <div class="text-[10px] text-emerald-400 mt-0.5 font-medium">+${formatNumber(up.cps * up.count)}/s total</div>
             </div>
             <div class="text-right">
-                <div class="text-2xl font-mono font-bold text-white flex items-center justify-end gap-2">
-                    <i class="fa-solid solid fa-cube text-neutral-400"></i>
-                    <span id="global-coal">0</span>
-                </div>
-                <p class="text-xs text-emerald-400 font-medium">+<span id="global-cps">0</span>/s</p>
+                <div class="text-xs font-mono font-bold ${canAfford ? 'text-amber-500' : 'text-neutral-500'}">${formatNumber(cost)}</div>
+                <div class="text-[9px] text-neutral-500 uppercase font-semibold">Charbon</div>
             </div>
-        </header>
+        `;
+        container.appendChild(row);
+    }
+}
 
-        <!-- MAIN VIEW (SCROLLABLE) -->
-        <main class="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
+// SYSTÈME DE CASINO ROULETTE PREMIUM
+function setupCasino() {
+    const chips = document.querySelectorAll('.chip-btn');
+    chips.forEach(chip => {
+        chip.onclick = () => {
+            if (isSpinning) return;
+            chips.forEach(c => c.classList.remove('selected'));
+            chip.classList.add('selected');
+            currentBetAmount = parseInt(chip.getAttribute('data-amount'));
+            updateUI();
+        };
+    });
+
+    document.getElementById('clear-bet-btn').onclick = () => {
+        if (isSpinning) return;
+        chips.forEach(c => c.classList.remove('selected'));
+        currentBetAmount = 0;
+        updateUI();
+    };
+
+    document.getElementById('spin-btn').onclick = () => {
+        if (isSpinning) return;
+        const targetInput = document.getElementById('bet-target');
+        const targetNumber = parseInt(targetInput.value);
+
+        if (isNaN(targetNumber) || targetNumber < 0 || targetNumber > 36) {
+            alert('Veuillez sélectionner un numéro valide entre 0 et 36.');
+            return;
+        }
+        if (currentBetAmount <= 0) {
+            alert('Sélectionnez un jeton pour miser.');
+            return;
+        }
+        if (state.coal < currentBetAmount) {
+            alert('Ressources insuffisantes pour cette mise.');
+            return;
+        }
+
+        // LOCK ENGINE
+        isSpinning = true;
+        state.coal -= currentBetAmount;
+        updateUI();
+
+        const statusDisplay = document.getElementById('roulette-status');
+        const wheel = document.getElementById('casino-wheel');
+        statusDisplay.innerText = "Roue en rotation...";
+        statusDisplay.className = "text-xs text-amber-500 font-bold animate-pulse";
+
+        // CALCUL DE ROTATION PHYSIQUE (Min 5 tours complets + angle aléatoire)
+        const randomDegree = Math.floor(Math.random() * 360) + 1800; 
+        wheel.style.transform = `rotate(${randomDegree}deg)`;
+
+        setTimeout(() => {
+            // Calcul mathématique du numéro gagnant en fonction du résidu de l'angle
+            const normalizedDegree = randomDegree % 360;
+            const separation = 360 / 37;
+            const winningIndex = Math.floor(normalizedDegree / separation);
             
-            <!-- SECTION ACTION : MINE -->
-            <section id="mine-pane" class="space-y-4">
-                <button id="main-click-btn" class="w-full aspect-[2/1] bg-gradient-to-br from-neutral-800 to-neutral-900 border border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all duration-100 active:scale-95 shadow-lg group">
-                    <div class="w-16 h-16 rounded-full bg-neutral-950 flex items-center justify-center border border-neutral-800 group-hover:border-amber-500/50 transition-colors">
-                        <i class="fa-solid fa-pickaxe text-2xl text-amber-500 group-hover:rotate-12 transition-transform"></i>
-                    </div>
-                    <span class="text-sm font-bold uppercase tracking-widest text-neutral-300 group-hover:text-white">Extraire du charbon</span>
-                </button>
-            </section>
+            // Simulation simplifiée indexée sur le modèle européen standard
+            const engineResult = Math.floor(Math.random() * 37);
 
-            <!-- SECTION CASINO : ROULETTE -->
-            <section class="bg-neutral-950/50 border border-neutral-800 rounded-2xl p-4 space-y-4">
-                <div class="flex justify-between items-center border-b border-neutral-800 pb-2">
-                    <h2 class="text-sm font-bold uppercase tracking-wider text-neutral-400"><i class="fa-solid fa-circle-dashed text-red-500 mr-2"></i>Roulette Royale</h2>
-                    <span id="roulette-status" class="text-xs text-neutral-500 font-mono">Prêt</span>
-                </div>
+            isSpinning = false;
+            wheel.style.transition = 'none';
+            wheel.style.transform = `rotate(${normalizedDegree}deg)`;
+            setTimeout(() => wheel.style.transition = 'transform 4s cubic-bezier(0.1, 0.8, 0.1, 1)', 50);
 
-                <!-- Visuel de la Roue -->
-                <div class="relative w-44 h-44 mx-auto flex items-center justify-center">
-                    <div id="wheel-pointer" class="absolute -top-1 left-1/2 -translate-x-1/2 z-10 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[15px] border-t-amber-500 filter drop-shadow"></div>
-                    <div id="casino-wheel" class="w-full h-full rounded-full border-4 border-amber-600 shadow-2xl relative overflow-hidden bg-neutral-900"></div>
-                </div>
+            if (engineResult === targetNumber) {
+                const payout = currentBetAmount * 36;
+                state.coal += payout;
+                statusDisplay.innerText = `GAGNÉ (N° ${engineResult}) ! +${formatNumber(payout)}`;
+                statusDisplay.className = "text-xs text-emerald-400 font-black";
+            } else {
+                statusDisplay.innerText = `PERDU (N° ${engineResult})`;
+                statusDisplay.className = "text-xs text-red-500 font-bold";
+            }
+            updateUI();
+            saveGame();
+        }, 4000);
+    };
+}
 
-                <!-- Interface de Mise -->
-                <div class="space-y-3">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Numéro (0-36)</label>
-                            <input type="number" id="bet-target" min="0" max="36" value="7" class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-sm font-mono font-bold text-center focus:outline-none focus:border-amber-500">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Montant à miser</label>
-                            <div class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-sm font-mono font-bold text-center" id="display-bet-amount">0</div>
-                        </div>
-                    </div>
+// ENGINES INTERNES : CLICS & TICKER AUTOMATIQUE
+document.getElementById('main-click-btn').onclick = () => {
+    state.coal += 1 + (state.totalCps * 0.05); // Bonus de clic indexé sur 5% de la puissance globale
+    updateUI();
+    saveGame();
+};
 
-                    <!-- Jetons de Casino -->
-                    <div class="flex justify-center gap-2 pt-1" id="chips-container">
-                        <button class="chip-btn bg-blue-600 text-white" data-amount="10">10</button>
-                        <button class="chip-btn bg-green-600 text-white" data-amount="100">100</button>
-                        <button class="chip-btn bg-purple-600 text-white" data-amount="1000">1K</button>
-                        <button class="chip-btn bg-red-600 text-white" data-amount="1000000">1M</button>
-                        <button id="clear-bet-btn" class="w-10 h-10 rounded-full border border-neutral-700 flex items-center justify-center text-xs text-neutral-400 active:scale-90"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
+// LOOP DE PRODUCTION ET SAUVEGARDE AUTOMATIQUE MICRO-CADENCÉE
+setInterval(() => {
+    state.coal += state.totalCps / 10;
+    updateUI();
+}, 100);
 
-                    <button id="spin-btn" class="w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-neutral-950 font-black text-sm uppercase tracking-widest py-3.5 rounded-xl transition-all shadow-lg shadow-amber-500/10">Lancer la roue</button>
-                </div>
-            </section>
+// PERSISTENCE DES DONNÉES (STORAGE POOL)
+function saveGame() {
+    localStorage.setItem(GAME_KEY, JSON.stringify(state));
+}
 
-            <!-- SECTION UPGRADES / BOUTIQUE -->
-            <section class="space-y-3">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-800 pb-2"><i class="fa-solid fa-shop text-amber-500 mr-2"></i>Infrastructures & Automatisation</h2>
-                <div id="upgrades-list" class="space-y-2.5">
-                    <!-- Généré dynamiquement en JS -->
-                </div>
-            </section>
-        </main>
-    </div>
+function loadGame() {
+    const raw = localStorage.getItem(GAME_KEY);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed.upgrades) {
+                state.coal = parsed.coal || 0;
+                for (const key in parsed.upgrades) {
+                    if (state.upgrades[key]) state.upgrades[key].count = parsed.upgrades[key].count || 0;
+                }
+            }
+        } catch (e) {
+            console.error("Échec de la désérialisation de la sauvegarde. Pool corrompu.", e);
+        }
+    }
+    recalculateCps();
+    updateUI();
+}
 
-    <script src="script.js"></script>
-</body>
-</html>
+// INITIALISATION DU ENGINE APRES CHARGEMENT DU DOM
+window.onload = () => {
+    loadGame();
+    setupCasino();
+};
