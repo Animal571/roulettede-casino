@@ -79,7 +79,6 @@ function drawWheel() {
 
         ctx.save();
         ctx.translate(center, center);
-        // AJUSTEMENT DE L'ANGLE POUR CENTRER LES CHIFFRES PILE AU MILIEU DES CASES
         ctx.rotate(currentAngle + arcLength / 2 + Math.PI / 2);
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 24px monospace";
@@ -139,16 +138,16 @@ function checkBankruptcy() {
     }
 }
 
+// HISTORIQUE NETTOYÉ : 100% STATIQUE ET CALME
 function renderHistory() {
     if (gameHistory.length === 0) return;
     historyContainer.innerHTML = '';
     gameHistory.forEach(num => {
         const bg = getNumberColor(num);
         const badge = document.createElement('span');
-        badge.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black font-mono shadow border border-white/10 text-white shrink-0 transform scale-0 animate-bounce";
+        // Suppression de transform, scale-0 et animate-bounce pour bloquer les mouvements
+        badge.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black font-mono shadow border border-white/10 text-white shrink-0";
         badge.style.backgroundColor = bg;
-        badge.style.animationFillMode = "forwards";
-        badge.style.animationDuration = "0.3s";
         badge.innerText = num;
         historyContainer.appendChild(badge);
     });
@@ -224,11 +223,11 @@ spinButton.onclick = () => {
         canvas.style.transform = `rotate(${finalAngleNormalized}deg)`;
 
         updateUI();
-        checkBankruptcy(); // Lance la vérification après le tirage
+        checkBankruptcy();
     }, 5000);
 };
 
 // Premier rendu au chargement
 drawWheel();
 updateUI();
-checkBankruptcy(); // Vérifie aussi au chargement initial si le joueur était à sec
+checkBankruptcy();
