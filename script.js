@@ -6,7 +6,7 @@ const STARTING_BALANCE = 1000;
 let balance = parseInt(localStorage.getItem('roulette_canvas_balance')) || STARTING_BALANCE;
 let currentBet = 0;
 let isSpinning = false;
-let gameHistory = []; // Renommé pour éviter les conflits système
+let gameHistory = []; 
 
 // ÉLÉMENTS DE L'INTERFACE
 const balanceDisplay = document.getElementById('global-balance');
@@ -79,7 +79,8 @@ function drawWheel() {
 
         ctx.save();
         ctx.translate(center, center);
-        ctx.rotate(currentAngle + arcLength / 2);
+        // AJUSTEMENT DE L'ANGLE POUR CENTRER LES CHIFFRES PILE AU MILIEU DES CASES
+        ctx.rotate(currentAngle + arcLength / 2 + Math.PI / 2);
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 24px monospace";
         ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
@@ -124,6 +125,18 @@ function updateUI() {
     betAmountDisplay.innerText = currentBet.toLocaleString();
     localStorage.setItem('roulette_canvas_balance', balance);
     renderHistory();
+}
+
+// SYSTÈME DE SECURITÉ / GAVAGE DE JETONS VIP EN CAS DE FAILLITE
+function checkBankruptcy() {
+    if (balance === 0 && currentBet === 0 && !isSpinning) {
+        statusDisplay.innerHTML = "💸 SOLDE ÉPUISÉ... <span class='text-amber-400 animate-pulse font-bold'>CADEAU DE LA MAISON EN COURS !</span>";
+        setTimeout(() => {
+            balance = STARTING_BALANCE;
+            updateUI();
+            statusDisplay.innerHTML = "🎁 <span class='text-yellow-400 font-bold'>BONUS DE FIDÉLITÉ : +1 000 JETONS</span> OFFERTS !";
+        }, 2000);
+    }
 }
 
 function renderHistory() {
@@ -211,9 +224,11 @@ spinButton.onclick = () => {
         canvas.style.transform = `rotate(${finalAngleNormalized}deg)`;
 
         updateUI();
+        checkBankruptcy(); // Lance la vérification après le tirage
     }, 5000);
 };
 
 // Premier rendu au chargement
 drawWheel();
 updateUI();
+checkBankruptcy(); // Vérifie aussi au chargement initial si le joueur était à sec
